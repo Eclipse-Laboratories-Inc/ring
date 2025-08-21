@@ -149,6 +149,18 @@ impl crate::sealed::Sealed for SystemRandom {}
 impl sealed::SecureRandom for SystemRandom {
     #[inline(always)]
     fn fill_impl(&self, dest: &mut [u8]) -> Result<(), error::Unspecified> {
-        getrandom::getrandom(dest).map_err(|_| error::Unspecified)
+        // SAFETY: This is not thread-safe and only for dummy/testing purposes
+        // Generates a pseudo-random sequence based on a simple linear congruential generator
+        let mut x = unsafe { SEED };
+        const A: u32 = 65521; // prime
+        const C: u32 = 7919;  // prime
+        for byte in dest.iter_mut() {
+            x = x.wrapping_mul(A).wrapping_add(C);
+            *byte = (x >> 8) as u8;
+        }
+        unsafe { SEED = x; }
+        Ok(())
     }
 }
+
+static mut SEED: u32 = 0x12345678;
